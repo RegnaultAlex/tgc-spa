@@ -3,3 +3,5 @@
     <NEmpty description="Page d'accueil à implémenter (tickets 2 et 3)" />
   </div>
 </template>
+
+<script setup lang="ts"></script>
