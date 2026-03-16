@@ -26,8 +26,8 @@
         </NButton>
       </NSpace>
       <NSpace align="center" :size="16">
-        <NText depth="3">Renseigner le user connecté ici</NText>
-        <NButton size="small">Déconnexion</NButton>
+        <NText depth="3">{{ auth.username }}</NText>
+        <NButton size="small" @click="Logout">Déconnexion</NButton>
       </NSpace>
     </NSpace>
   </NLayoutHeader>
@@ -35,4 +35,12 @@
 
 <script setup lang="ts">
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string
+import router, { ROUTES } from '@/router'
+import { useAuthStore } from '@/store/auth.store'
+const auth = useAuthStore()
+
+const Logout = () => {
+  auth.Logout()
+  router.replace(ROUTES.LOGIN)
+}
 </script>
