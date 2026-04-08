@@ -52,7 +52,9 @@ jobs:
                   lock_reason: 'resolved'
                 });
               }
-              console.log(`  🗑️  Closed and locked issue #${issue.number}: "${issue.title}"`);
+              console.log(
+                `  🗑️  Closed and locked issue #${issue.number}: "${issue.title}"`
+              );
               closedCount++;
             }
             console.log(`✅ Closed and locked ${closedCount} existing issues`);
@@ -69,9 +71,10 @@ jobs:
                 body: issueData.body,
                 labels: issueData.labels || []
               });
-              console.log(`  ✅ Issue created: "${issueData.title}" (#${newIssue.data.number})`);
+              console.log(
+                `  ✅ Issue created: "${issueData.title}" (#${newIssue.data.number})`
+              );
               createdCount++;
             }
 
             console.log(`\n📊 Summary: ${closedCount} closed, ${createdCount} created`);
-
