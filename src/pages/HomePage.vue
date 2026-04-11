@@ -32,10 +32,23 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
+
 import AvailableGames from '@/components/AvailableGames.vue'
 import CreateGame from '@/components/CreateGame.vue'
 import DeckList from '@/components/DeckList.vue'
 import router, { ROUTES } from '@/router'
+import { useGameStore } from '@/store/game.store'
+
+const gameStore = useGameStore()
+
+onMounted(() => {
+  gameStore.connect()
+})
+
+onUnmounted(() => {
+  gameStore.disconnect()
+})
 
 const redirectToCreatePage = () => {
   router.push(ROUTES.CREATE_DECK)

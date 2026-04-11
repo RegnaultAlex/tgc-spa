@@ -1,20 +1,22 @@
 <template>
-  <NCard v-for="deck in decks" :key="deck.id" class="play-card">
-    <NH2>{{ deck.name }}</NH2>
+  <div class="deck-list-container">
+    <NCard v-for="deck in decks" :key="deck.id" class="play-card">
+      <NH2>{{ deck.name }}</NH2>
 
-    <div style="display: flex; align-items: center">
-      <CardGrid :cards="getCardsForDeck(deck)" size="md" />
-    </div>
+      <div style="display: flex; align-items: center">
+        <CardGrid :cards="getCardsForDeck(deck)" size="md" />
+      </div>
 
-    <div
-      class="buttons"
-      style="position: relative; bottom: 0; margin-top: 10px"
-    >
-      <NButton @click="editDeck(deck.id)">Modifier</NButton>
-      <NButton @click="detailsDeck(deck.id)">Détails</NButton>
-      <NButton type="error" @click="removeDeck(deck.id)">Supprimer</NButton>
-    </div>
-  </NCard>
+      <div
+        class="buttons"
+        style="position: relative; bottom: 0; margin-top: 10px"
+      >
+        <NButton @click="editDeck(deck.id)">Modifier</NButton>
+        <NButton @click="detailsDeck(deck.id)">Détails</NButton>
+        <NButton type="error" @click="removeDeck(deck.id)">Supprimer</NButton>
+      </div>
+    </NCard>
+  </div>
 </template>
 
 <script setup lang="ts">

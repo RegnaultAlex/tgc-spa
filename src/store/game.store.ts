@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import type { Socket } from 'socket.io-client'
 import { io } from 'socket.io-client'
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 
 import router from '@/router'
 import type { Card } from '@/types'
@@ -30,7 +30,8 @@ export interface GameStatePayload {
 export const useGameStore = defineStore('game', () => {
   const authStore = useAuthStore()
 
-  const socket = ref<Socket | null>(null)
+  const socket = shallowRef<Socket | null>(null)
+
   const rooms = ref<Room[]>([])
   const currentRoomId = ref<string | null>(null)
 
@@ -54,18 +55,27 @@ export const useGameStore = defineStore('game', () => {
   const connect = () => {
     if (socket.value?.connected) return
 
-    socket.value = io(import.meta.env.VITE_SOCKET_URL as string, {
+    const socketUrl = new URL(import.meta.env.VITE_SOCKET_URL as string)
+    let socketPath = socketUrl.pathname
+    if (!socketPath.endsWith('/')) socketPath += '/'
+    socketPath += 'socket.io/'
+
+    socket.value = io(socketUrl.origin, {
+      path: socketPath,
       auth: { token: authStore.token },
     })
 
     socket.value.on('roomsList', (roomsList: Room[]) => {
       rooms.value = roomsList
     })
+
     socket.value.on('roomsListUpdated', (roomsList: Room[]) => {
       rooms.value = roomsList
     })
-    socket.value.on('roomCreated', (roomId: string) => {
-      currentRoomId.value = roomId
+
+    socket.value.on('roomCreated', (payload: unknown) => {
+      const id = payload?.roomId !== undefined ? payload.roomId : payload
+      currentRoomId.value = String(id)
     })
 
     socket.value.on('gameStarted', () => {
