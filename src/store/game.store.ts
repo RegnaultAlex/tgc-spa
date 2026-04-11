@@ -27,6 +27,11 @@ export interface GameStatePayload {
   lastActionMessage?: string
 }
 
+export type RoomCreatedPayload =
+  | string
+  | number
+  | { roomId: string | number; message?: string }
+
 export const useGameStore = defineStore('game', () => {
   const authStore = useAuthStore()
 
@@ -73,7 +78,7 @@ export const useGameStore = defineStore('game', () => {
       rooms.value = roomsList
     })
 
-    socket.value.on('roomCreated', (payload: unknown) => {
+    socket.value.on('roomCreated', (payload: RoomCreatedPayload) => {
       const id = payload?.roomId !== undefined ? payload.roomId : payload
       currentRoomId.value = String(id)
     })
@@ -125,6 +130,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   const joinRoom = (roomId: string, deckId: string) => {
+    currentRoomId.value = String(roomId)
     socket.value?.emit('joinRoom', { roomId, deckId })
   }
 
