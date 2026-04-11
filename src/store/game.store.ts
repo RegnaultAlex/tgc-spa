@@ -8,6 +8,10 @@ import type { Card } from '@/types'
 
 import { useAuthStore } from './auth.store'
 
+export interface Room {
+  id: string
+}
+
 export interface PlayerBoard {
   score: number
   activeCard: (Card & { currentHp: number }) | null
@@ -15,11 +19,19 @@ export interface PlayerBoard {
   hand?: Card[]
 }
 
+export interface GameStatePayload {
+  isMyTurn: boolean
+  role: 'host' | 'guest'
+  playerBoard: PlayerBoard
+  opponentBoard: PlayerBoard
+  lastActionMessage?: string
+}
+
 export const useGameStore = defineStore('game', () => {
   const authStore = useAuthStore()
 
   const socket = ref<Socket | null>(null)
-  const rooms = ref<unknown[]>([])
+  const rooms = ref<Room[]>([])
   const currentRoomId = ref<string | null>(null)
 
   const isMyTurn = ref<boolean>(false)
@@ -42,14 +54,14 @@ export const useGameStore = defineStore('game', () => {
   const connect = () => {
     if (socket.value?.connected) return
 
-    socket.value = io(import.meta.env.VITE_SOCKET_URL, {
+    socket.value = io(import.meta.env.VITE_SOCKET_URL as string, {
       auth: { token: authStore.token },
     })
 
-    socket.value.on('roomsList', (roomsList: unknown[]) => {
+    socket.value.on('roomsList', (roomsList: Room[]) => {
       rooms.value = roomsList
     })
-    socket.value.on('roomsListUpdated', (roomsList: unknown[]) => {
+    socket.value.on('roomsListUpdated', (roomsList: Room[]) => {
       rooms.value = roomsList
     })
     socket.value.on('roomCreated', (roomId: string) => {
@@ -64,7 +76,7 @@ export const useGameStore = defineStore('game', () => {
       gameMessages.value = `Erreur: ${errorMsg}`
     })
 
-    socket.value.on('gameStateUpdated', (state: unknown) => {
+    socket.value.on('gameStateUpdated', (state: GameStatePayload) => {
       isMyTurn.value = state.isMyTurn
       role.value = state.role
       playerBoard.value = state.playerBoard
