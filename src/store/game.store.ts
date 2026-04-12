@@ -8,6 +8,32 @@ import type { Card } from '@/types'
 
 import { useAuthStore } from './auth.store'
 
+export interface ServerBoard {
+  score: number
+  activeCard: (Card & { currentHp: number }) | null
+  deck: Card[]
+  hand: Card[]
+}
+
+export interface ServerPlayer {
+  socketId: string
+  board: ServerBoard
+}
+
+export interface ServerGameState {
+  roomId: number | string
+  status: string
+  currentPlayerSocketId: string
+  host: ServerPlayer
+  guest: ServerPlayer
+}
+
+export interface GameEventPayload {
+  message?: string
+  lastActionMessage?: string
+  gameState?: ServerGameState
+}
+
 export interface Room {
   id: string
 }
@@ -15,31 +41,16 @@ export interface Room {
 export interface PlayerBoard {
   score: number
   activeCard: (Card & { currentHp: number }) | null
-  deckCount?: number
-  hand?: Card[]
+  deckCount: number
+  hand: Card[]
 }
-
-export interface GameStatePayload {
-  isMyTurn: boolean
-  role: 'host' | 'guest'
-  playerBoard: PlayerBoard
-  opponentBoard: PlayerBoard
-  lastActionMessage?: string
-}
-
-export type RoomCreatedPayload =
-  | string
-  | number
-  | { roomId: string | number; message?: string }
 
 export const useGameStore = defineStore('game', () => {
   const authStore = useAuthStore()
 
   const socket = ref<Socket | null>(null)
-
   const rooms = ref<Room[]>([])
   const currentRoomId = ref<string | null>(null)
-
   const isMyTurn = ref<boolean>(false)
   const role = ref<'host' | 'guest' | null>(null)
   const gameResult = ref<'win' | 'lose' | null>(null)
@@ -55,99 +66,101 @@ export const useGameStore = defineStore('game', () => {
   const opponentBoard = ref<PlayerBoard>({
     score: 0,
     activeCard: null,
+    deckCount: 0,
+    hand: [],
   })
 
-  const syncState = (gameState: unknown) => {
+  const syncState = (gameState: ServerGameState) => {
     if (!gameState || !socket.value) return
 
     const myId = socket.value.id
-    const isHost = gameState.host?.socketId === myId
+    const isHost = gameState.host.socketId === myId
 
     role.value = isHost ? 'host' : 'guest'
-    isMyTurn.value = gameState.currentPlayerSocketId === myId
+    isMyTurn.value = String(gameState.currentPlayerSocketId) === String(myId)
+
+    const mapBoard = (serverBoard: ServerBoard): PlayerBoard => ({
+      score: serverBoard.score,
+      activeCard: serverBoard.activeCard,
+      hand: serverBoard.hand || [],
+      deckCount: serverBoard.deck?.length || 0,
+    })
 
     if (isHost) {
-      playerBoard.value = {
-        ...gameState.host.board,
-        deckCount: gameState.host.board.deck?.length || 0,
-      }
-
-      opponentBoard.value = {
-        ...gameState.guest.board,
-        deckCount: gameState.guest.board.deck?.length || 0,
-      }
+      playerBoard.value = mapBoard(gameState.host.board)
+      opponentBoard.value = mapBoard(gameState.guest.board)
     } else {
-      playerBoard.value = {
-        ...gameState.guest.board,
-        deckCount: gameState.guest.board.deck?.length || 0,
-      }
-
-      opponentBoard.value = {
-        ...gameState.host.board,
-        deckCount: gameState.host.board.deck?.length || 0,
-      }
+      playerBoard.value = mapBoard(gameState.guest.board)
+      opponentBoard.value = mapBoard(gameState.host.board)
     }
   }
 
   const connect = () => {
-    if (socket.value && socket.value.connected) {
-      return
-    }
+    if (socket.value?.connected) return
 
     const socketUrl = new URL(import.meta.env.VITE_SOCKET_URL as string)
     let socketPath = socketUrl.pathname
     if (!socketPath.endsWith('/')) socketPath += '/'
     socketPath += 'socket.io/'
 
-    const newSocket = io(socketUrl.origin, {
+    socket.value = io(socketUrl.origin, {
       path: socketPath,
       auth: { token: authStore.token },
+      reconnection: true,
     })
 
-    socket.value = newSocket
     socket.value.on('roomsList', (roomsList: Room[]) => {
       rooms.value = roomsList
     })
-
     socket.value.on('roomsListUpdated', (roomsList: Room[]) => {
       rooms.value = roomsList
     })
 
-    socket.value.on('roomCreated', (payload: RoomCreatedPayload) => {
-      if (
-        typeof payload === 'object' &&
-        payload !== null &&
-        'roomId' in payload
-      ) {
-        currentRoomId.value = String(payload.roomId)
-      } else {
-        currentRoomId.value = String(payload)
-      }
-    })
+    socket.value.on(
+      'roomCreated',
+      (payload: string | number | { roomId: string | number }) => {
+        if (
+          typeof payload === 'object' &&
+          payload !== null &&
+          'roomId' in payload
+        ) {
+          currentRoomId.value = String(payload.roomId)
+        } else {
+          currentRoomId.value = String(payload)
+        }
+      },
+    )
 
-    socket.value.on('gameStarted', (payload: unknown) => {
+    socket.value.on('gameStarted', (payload: GameEventPayload) => {
       if (payload.gameState) syncState(payload.gameState)
 
       gameMessages.value = payload.message || 'La partie commence !'
       router.push('/game')
     })
 
+    socket.value.on(
+      'gameStateUpdated',
+      (payload: GameEventPayload | ServerGameState) => {
+        const stateToSync =
+          'gameState' in payload
+            ? payload.gameState
+            : (payload as ServerGameState)
+
+        if (stateToSync) syncState(stateToSync)
+
+        if ('message' in payload || 'lastActionMessage' in payload) {
+          const p = payload as GameEventPayload
+          gameMessages.value = p.message || p.lastActionMessage || ''
+        }
+      },
+    )
+
     socket.value.on('error', (errorMsg: string) => {
       gameMessages.value = `Erreur: ${errorMsg}`
     })
 
-    socket.value.on('gameStateUpdated', (payload: unknown) => {
-      const stateToSync = payload.gameState ? payload.gameState : payload
-      syncState(stateToSync)
-      gameMessages.value = payload.message || payload.lastActionMessage || ''
-    })
-
     socket.value.on('gameEnded', (result: 'win' | 'lose') => {
       gameResult.value = result
-    })
-
-    socket.value.on('opponentDisconnected', () => {
-      gameMessages.value = "L'adversaire s'est déconnecté."
     })
   }
 
@@ -164,33 +177,24 @@ export const useGameStore = defineStore('game', () => {
     gameResult.value = null
     gameMessages.value = ''
     playerBoard.value = { score: 0, activeCard: null, deckCount: 0, hand: [] }
-    opponentBoard.value = { score: 0, activeCard: null }
+    opponentBoard.value = { score: 0, activeCard: null, deckCount: 0, hand: [] }
     currentRoomId.value = null
   }
 
-  const createRoom = (deckId: string) => {
-    socket.value?.emit('createRoom', deckId)
-  }
-
-  const joinRoom = (roomId: string, deckId: string) => {
-    currentRoomId.value = String(roomId)
-    socket.value?.emit('joinRoom', { roomId, deckId })
-  }
-
   const drawCards = () => {
-    if (socket.value) socket.value.emit('drawCards')
+    if (isMyTurn.value && socket.value) socket.value.emit('drawCard')
   }
 
   const playCard = (cardId: number) => {
-    if (isMyTurn.value && socket.value) socket.value?.emit('playCard', cardId)
+    if (isMyTurn.value && socket.value) socket.value.emit('playCard', cardId)
   }
 
   const attack = () => {
-    if (isMyTurn.value) socket.value?.emit('attack')
+    if (isMyTurn.value && socket.value) socket.value.emit('attack')
   }
 
   const endTurn = () => {
-    if (isMyTurn.value && socket.value) socket.value?.emit('endTurn')
+    if (isMyTurn.value && socket.value) socket.value.emit('endTurn')
   }
 
   return {
@@ -205,8 +209,11 @@ export const useGameStore = defineStore('game', () => {
     connect,
     disconnect,
     resetGame,
-    createRoom,
-    joinRoom,
+    createRoom: (deckId: string) => socket.value?.emit('createRoom', deckId),
+    joinRoom: (roomId: string, deckId: string) => {
+      currentRoomId.value = String(roomId)
+      socket.value?.emit('joinRoom', { roomId, deckId })
+    },
     drawCards,
     playCard,
     attack,
