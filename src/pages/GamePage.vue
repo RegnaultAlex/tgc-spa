@@ -9,12 +9,10 @@
         <p class="hand-title">
           Main ({{ gameStore.playerBoard.hand?.length || 0 }}/5)
         </p>
-
         <div class="hand-cards">
           <div v-if="!gameStore.playerBoard.hand?.length" class="empty-hand">
             Votre main est vide
           </div>
-
           <div
             v-for="card in gameStore.playerBoard.hand"
             :key="card.id"
@@ -24,12 +22,13 @@
             <PokemonCard :card="card" :limit-reached="false" />
           </div>
         </div>
-
         <p class="deck-title">
           Deck : {{ gameStore.playerBoard.deckCount || 0 }} cartes
         </p>
       </div>
     </GameZone>
+
+    <GameOver />
   </div>
 </template>
 
@@ -37,6 +36,7 @@
 import { onMounted } from 'vue'
 
 import ActionBar from '@/components/ActionBar.vue'
+import GameOver from '@/components/GameOver.vue'
 import GameZone from '@/components/GameZone.vue'
 import PokemonCard from '@/components/PokemonCard.vue'
 import router from '@/router'
@@ -45,6 +45,7 @@ import { useGameStore } from '@/store/game.store'
 const gameStore = useGameStore()
 
 onMounted(() => {
+  gameStore.connect()
   if (!gameStore.currentRoomId) {
     router.push('/')
   }
