@@ -127,6 +127,7 @@ export const useGameStore = defineStore('game', () => {
 
     socket.value.on('gameStarted', (payload: unknown) => {
       if (payload.gameState) syncState(payload.gameState)
+
       gameMessages.value = payload.message || 'La partie commence !'
       router.push('/game')
     })

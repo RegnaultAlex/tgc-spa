@@ -25,6 +25,7 @@
       v-if="allCards.length > 0 && selectedPokemonCards.length > 0"
       :cards="selectedPokemonCards"
       size="md"
+      :search-bar="true"
     />
     <div v-else>Chargement du deck...</div>
   </div>

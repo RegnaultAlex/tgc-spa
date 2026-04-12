@@ -25,6 +25,7 @@
   <CardGrid
     :cards="cards ?? []"
     size="sm"
+    :search-bar="true"
     @selected-cards="updateSelectedCard"
   />
 </template>

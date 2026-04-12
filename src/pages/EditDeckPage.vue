@@ -33,6 +33,7 @@
       :cards="allCards"
       :initial-selection="selectedPokemonCards"
       size="sm"
+      :search-bar="true"
       @selected-cards="updateSelectedCard"
     />
     <div v-else>Chargement du deck...</div>

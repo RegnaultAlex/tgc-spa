@@ -47,7 +47,6 @@ onMounted(async () => {
   deckOptions.value = decks.map((d) => ({ label: d.name, value: d.id }))
 })
 
-// NOUVEAU : On filtre la liste pour exclure la partie actuelle du joueur
 const filteredRooms = computed(() => {
   return gameStore.rooms.filter(
     (room) => String(room.id) !== String(gameStore.currentRoomId),
